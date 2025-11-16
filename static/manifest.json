@@ -1,0 +1,27 @@
+{
+  "name": "Kain Saan - Restaurant Finder",
+  "short_name": "Kain Saan",
+  "description": "Random restaurant picker for finding nearby dining options",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBBF24",
+  "theme_color": "#EF4444",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "lifestyle", "entertainment"],
+  "lang": "en-PH",
+  "dir": "ltr"
+}

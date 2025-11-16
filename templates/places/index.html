@@ -1,0 +1,377 @@
+{% extends "places/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+    <!-- Header -->
+    <header class="text-center mb-8">
+        <h1 class="text-5xl font-black text-white drop-shadow-lg mb-2">
+            Kain Saan?
+        </h1>
+        <p class="text-white text-lg drop-shadow">
+            Random restaurant picker
+        </p>
+    </header>
+
+    <!-- Location & Radius Controls -->
+    <div class="bg-white rounded-2xl shadow-2xl p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Location</h2>
+        
+        <button 
+            id="getLocationBtn" 
+            class="w-full bg-kain-red hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition duration-200 mb-4"
+        >
+            Use My Current Location
+        </button>
+        
+        <div id="locationStatus" class="text-sm text-gray-600 mb-4 text-center hidden">
+            <span id="locationText"></span>
+        </div>
+        
+        <div class="mb-4">
+            <label for="radiusSelect" class="block text-gray-700 font-semibold mb-2">
+                Search Radius:
+            </label>
+            <select 
+                id="radiusSelect" 
+                class="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-kain-red focus:outline-none"
+            >
+                <option value="500">500 meters (Walking distance)</option>
+                <option value="1000" selected>1 kilometer</option>
+                <option value="3000">3 kilometers</option>
+                <option value="5000">5 kilometers</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main CTA Button -->
+    <button 
+        id="kainsanBtn" 
+        class="w-full bg-gradient-to-r from-kain-yellow to-yellow-500 hover:from-yellow-500 hover:to-kain-yellow text-gray-900 font-black text-2xl py-6 px-8 rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        disabled
+    >
+        Find Restaurant
+    </button>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden text-center mb-6">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white border-t-kain-yellow"></div>
+        <p class="text-white mt-2 font-semibold">Searching for restaurants...</p>
+    </div>
+
+    <!-- Result Card -->
+    <div id="resultCard" class="hidden bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
+        <!-- Restaurant Photo -->
+        <div class="relative">
+            <img 
+                id="restaurantPhoto" 
+                src="" 
+                alt="Restaurant" 
+                class="w-full h-64 object-cover"
+            >
+            <div class="absolute top-4 right-4 bg-kain-red text-white px-3 py-1 rounded-full font-bold text-sm">
+                Selected
+            </div>
+        </div>
+        
+        <!-- Restaurant Details -->
+        <div class="p-6">
+            <h3 id="restaurantName" class="text-2xl font-bold text-gray-900 mb-2"></h3>
+            
+            <div class="space-y-2 text-gray-600">
+                <p class="flex items-start">
+                    <span class="mr-2">📍</span>
+                    <span id="restaurantAddress"></span>
+                </p>
+                <p class="flex items-center">
+                    <span class="mr-2">📞</span>
+                    <span id="restaurantPhone"></span>
+                </p>
+            </div>
+            
+            <div class="mt-4 flex gap-2">
+                <a 
+                    id="mapsLink" 
+                    href="#" 
+                    target="_blank"
+                    class="flex-1 bg-kain-red hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-center transition duration-200"
+                >
+                    Open in Google Maps
+                </a>
+                <button 
+                    id="rerollBtn"
+                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-200"
+                >
+                    Try Another
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="mapContainer" class="hidden bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
+        <div id="map" class="w-full h-96"></div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg mb-6">
+        <p class="font-bold">Oops!</p>
+        <p id="errorText"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Google Maps JavaScript API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
+
+<script>
+    // Global state
+    let userLocation = null;
+    let map = null;
+    let marker = null;
+    let userMarker = null; // Marker for user's location
+    let radiusCircle = null;
+
+    // DOM elements
+    const getLocationBtn = document.getElementById('getLocationBtn');
+    const kainsanBtn = document.getElementById('kainsanBtn');
+    const rerollBtn = document.getElementById('rerollBtn');
+    const radiusSelect = document.getElementById('radiusSelect');
+    const locationStatus = document.getElementById('locationStatus');
+    const locationText = document.getElementById('locationText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const resultCard = document.getElementById('resultCard');
+    const mapContainer = document.getElementById('mapContainer');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+
+    // Initialize map (but don't show it yet)
+    function initMap(lat, lng) {
+        if (!map) {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat, lng },
+                zoom: 15,
+                mapTypeControl: false,
+                streetViewControl: false,
+            });
+        } else {
+            map.setCenter({ lat, lng });
+        }
+    }
+
+    // Draw radius circle on map (centered on user's location)
+    function drawRadiusCircle(lat, lng, radius) {
+        // Remove old circle if exists
+        if (radiusCircle) {
+            radiusCircle.setMap(null);
+        }
+
+        // Remove old user marker if exists
+        if (userMarker) {
+            userMarker.setMap(null);
+        }
+
+        // Draw circle around user's location
+        radiusCircle = new google.maps.Circle({
+            strokeColor: '#EF4444',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#EF4444',
+            fillOpacity: 0.15,
+            map: map,
+            center: { lat, lng },
+            radius: parseInt(radius)
+        });
+
+        // Add blue marker for user's location (center of circle)
+        userMarker = new google.maps.Marker({
+            position: { lat, lng },
+            map: map,
+            title: 'Your Location',
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: '#3B82F6',
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+            }
+        });
+
+        // Fit map to show entire circle
+        map.fitBounds(radiusCircle.getBounds());
+    }
+
+    // Update map marker (for restaurant location - red pin)
+    function updateMarker(lat, lng, title) {
+        // Remove old restaurant marker if exists
+        if (marker) {
+            marker.setMap(null);
+        }
+        
+        // Add red marker for restaurant
+        marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: map,
+            title: title,
+            animation: google.maps.Animation.DROP,
+            icon: {
+                url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+            }
+        });
+        
+        // DO NOT recenter or change bounds - circle and blue pin stay fixed!
+    }
+
+    // Get user's geolocation
+    getLocationBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            showError('Geolocation is not supported by your browser.');
+            return;
+        }
+
+        getLocationBtn.disabled = true;
+        getLocationBtn.textContent = 'Getting location...';
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                
+                locationStatus.classList.remove('hidden');
+                locationText.textContent = `✅ Location set: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`;
+                
+                getLocationBtn.textContent = '✓ Location Set';
+                getLocationBtn.classList.remove('bg-kain-red', 'hover:bg-red-600');
+                getLocationBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                
+                kainsanBtn.disabled = false;
+                
+                // Initialize map at user's location with radius circle
+                initMap(userLocation.lat, userLocation.lng);
+                const selectedRadius = radiusSelect.value;
+                drawRadiusCircle(userLocation.lat, userLocation.lng, selectedRadius);
+            },
+            (error) => {
+                getLocationBtn.disabled = false;
+                getLocationBtn.textContent = 'Use My Current Location';
+                
+                let errorMsg = 'Unable to get your location. ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMsg += 'Please allow location access.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMsg += 'Location information unavailable.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMsg += 'Location request timed out.';
+                        break;
+                    default:
+                        errorMsg += 'An unknown error occurred.';
+                }
+                showError(errorMsg);
+            }
+        );
+    });
+
+    // Update radius circle when radius changes
+    radiusSelect.addEventListener('change', () => {
+        if (userLocation && map) {
+            const selectedRadius = radiusSelect.value;
+            drawRadiusCircle(userLocation.lat, userLocation.lng, selectedRadius);
+            
+            // Remove restaurant marker when radius changes (since search area changed)
+            if (marker) {
+                marker.setMap(null);
+                marker = null;
+            }
+        }
+    });
+
+    // Fetch random restaurant
+    async function fetchRandomRestaurant() {
+        if (!userLocation) {
+            showError('Please set your location first.');
+            return;
+        }
+
+        const radius = radiusSelect.value;
+        
+        // Show loading state
+        kainsanBtn.disabled = true;
+        loadingSpinner.classList.remove('hidden');
+        resultCard.classList.add('hidden');
+        mapContainer.classList.add('hidden');
+        errorMessage.classList.add('hidden');
+
+        try {
+            const response = await fetch(
+                `/api/random-place/?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=${radius}`
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'An error occurred');
+            }
+
+            // Display result
+            displayRestaurant(data);
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            loadingSpinner.classList.add('hidden');
+            kainsanBtn.disabled = false;
+        }
+    }
+
+    // Display restaurant result
+    function displayRestaurant(restaurant) {
+        // Populate card
+        document.getElementById('restaurantPhoto').src = restaurant.photo_url;
+        document.getElementById('restaurantName').textContent = restaurant.name;
+        document.getElementById('restaurantAddress').textContent = restaurant.address;
+        document.getElementById('restaurantPhone').textContent = restaurant.phone;
+        document.getElementById('mapsLink').href = restaurant.maps_url;
+
+        // Show card and map
+        resultCard.classList.remove('hidden');
+        mapContainer.classList.remove('hidden');
+
+        // Update ONLY the restaurant marker - map/circle/blue pin stay fixed
+        updateMarker(restaurant.lat, restaurant.lng, restaurant.name);
+
+        // Scroll to result
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Show error message
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.classList.remove('hidden');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            errorMessage.classList.add('hidden');
+        }, 5000);
+    }
+
+    // Event listeners
+    kainsanBtn.addEventListener('click', fetchRandomRestaurant);
+    rerollBtn.addEventListener('click', fetchRandomRestaurant);
+
+    // Auto-prompt for location on page load
+    window.addEventListener('load', () => {
+        // Small delay to ensure everything is loaded
+        setTimeout(() => {
+            if (!userLocation) {
+                getLocationBtn.click();
+            }
+        }, 500);
+    });
+</script>
+{% endblock %}

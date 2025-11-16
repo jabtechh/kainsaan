@@ -2,8 +2,8 @@
 
 A mobile-first Progressive Web App that helps users discover nearby restaurants through random selection.
 
-![App Interface](screenshot1.png)
-![Map View](screenshot2.png)
+![App Interface](screenshot1.PNG)
+![Map View](screenshot2.PNG)
 
 ## About
 

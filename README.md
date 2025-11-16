@@ -2,6 +2,9 @@
 
 A mobile-first Progressive Web App that helps users discover nearby restaurants through random selection.
 
+![App Interface](screenshot1.png)
+![Map View](screenshot2.png)
+
 ## About
 
 Kain Saan is a location-based restaurant finder that uses geolocation to search for dining establishments within a configurable radius. Users can randomly select from nearby restaurants displayed on an interactive map.
@@ -54,3 +57,12 @@ docker-compose up --build
 I welcome contributions to Kain Saan. Feel free to create an issue regarding any bugs or desired features, and I'll respond when possible. If you want to contribute code, please fork this repository and create a pull request.
 
 Please note that contributions should focus on the frontend and application logic. The external API integrations and service layer code should remain as-is for security and stability reasons.
+
+## Planned Features
+
+- Michelin-starred restaurant filter (search for awarded establishments nearby)
+- Nearest carinderia finder (local eateries)
+
+## License
+
+MIT License

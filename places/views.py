@@ -90,8 +90,8 @@ def random_place(request):
         return JsonResponse(restaurant)
     
     except Exception as e:
-        logger.error(f"Error fetching random restaurant: {str(e)}")
+        logger.error(f"Error fetching random restaurant: {str(e)}", exc_info=True)
         return JsonResponse(
-            {'error': 'An error occurred while searching for restaurants. Please try again later.'}, 
+            {'error': f'An error occurred while searching for restaurants: {str(e)}'}, 
             status=500
         )

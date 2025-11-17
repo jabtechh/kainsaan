@@ -63,9 +63,13 @@ class GooglePlacesService:
         """
         
         try:
+            headers = {
+                'User-Agent': 'KainSaan/1.0 (Filipino Restaurant Finder; https://github.com/jabtechh/kainsaan)'
+            }
             response = requests.post(
                 self.OVERPASS_URL,
                 data={'data': query},
+                headers=headers,
                 timeout=15
             )
             response.raise_for_status()

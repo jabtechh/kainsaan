@@ -30,7 +30,8 @@ class GooglePlacesService:
             api_key: Google Places API key. If not provided, uses OpenStreetMap.
         """
         self.api_key = api_key or settings.GOOGLE_PLACES_API_KEY
-        self.use_google = bool(self.api_key and self.api_key not in ['dev', 'test', 'test-key', ''])
+        # Force OpenStreetMap usage (Google Places API disabled due to billing requirements)
+        self.use_google = False
     
     def search_nearby_restaurants_osm(
         self, 
